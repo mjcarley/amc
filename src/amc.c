@@ -1,3 +1,19 @@
+/* This file is part of AMC, a library for Affine Motion Calculation
+ *
+ * Copyright (C) 2024 Michael Carley
+ *
+ * AMC is free software: you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version. AMC is distributed in the
+ * hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+ * PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with AMC.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif /*HAVE_CONFIG_H*/
@@ -6,6 +22,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <glib.h>
 
 #include "tinyexpr.h"
 
@@ -35,18 +53,16 @@
  * @return newly allocated ::amc_transform_t
  */
 
-amc_transform_t *amc_transform_alloc(int dim, int order)
+amc_transform_t *amc_transform_alloc(int dim, gint order)
 
 {
   amc_transform_t *T ;
 
   if ( dim != 2 && dim != 3 ) {
-    fprintf(stderr, "%s: dimension (%d) must be 2 or 3\n",
-	    __FUNCTION__, dim) ;
-    return NULL ;
+    g_error("%s: dimension (%d) must be 2 or 3\n", __FUNCTION__, dim) ;
   }
   
-  T = (amc_transform_t *)malloc(sizeof(amc_transform_t)) ;
+  T = (amc_transform_t *)g_malloc0(sizeof(amc_transform_t)) ;
   memset(T, 0, sizeof(amc_transform_t)) ;
 
   amc_transform_dimension(T)       = dim ;
@@ -58,14 +74,15 @@ amc_transform_t *amc_transform_alloc(int dim, int order)
   amc_transform_compiled(T)        = 0 ;
   /*matrices have msize defined entries*/
   T->matrix_values  =
-    (double *)malloc((T->msize)*(order+1)*sizeof(double)) ;
+    (gdouble *)g_malloc0((T->msize)*(order+1)*sizeof(gdouble)) ;
   T->matrix_strings =
-    (char **) malloc((T->msize)*(order+1)*sizeof(char *)) ;
-  T->matrix_expr    =
-    (te_expr **) malloc((T->msize)*(order+1)*sizeof(te_expr **)) ;
-
+    (char **) g_malloc0((T->msize)*(order+1)*sizeof(char *)) ;
+  T->matrix_expr    = g_malloc0((T->msize)*(order+1)*sizeof(gpointer)) ;
+    /* (te_expr **) g_malloc0((T->msize)*(order+1)*sizeof(te_expr **)) ; */
+  T->vars           = g_malloc0(AMC_TRANSFORM_VARIABLE_NUMBER*
+			     sizeof(te_variable)) ;
   /*set everything to 0 or NULL for checking later*/
-  memset(T->matrix_values , 0, (T->msize)*(order+1)*sizeof(double)) ;
+  memset(T->matrix_values , 0, (T->msize)*(order+1)*sizeof(gdouble)) ;
   memset(T->matrix_strings, 0, (T->msize)*(order+1)*sizeof(char *)) ;
   memset(T->matrix_expr   , 0, (T->msize)*(order+1)*sizeof(te_expr *)) ;
 
@@ -92,8 +109,8 @@ amc_transform_t *amc_transform_alloc(int dim, int order)
  * @return 0 on success.
  */
 
-int amc_transform_entry_set(amc_transform_t *T, int order,
-			    int i, int j, double val, char *str)
+int amc_transform_entry_set(amc_transform_t *T, gint order,
+			    gint i, gint j, gdouble val, char *str)
 
 {
   amc_transform_check(T) ;
@@ -147,10 +164,10 @@ int amc_transform_entry_set(amc_transform_t *T, int order,
  * @return 0 on success.
  */
 
-int amc_transform_matrix_write(FILE *f, amc_transform_t *T, int order)
+int amc_transform_matrix_write(FILE *f, amc_transform_t *T, gint order)
 
 {
-  int i, j ;
+  gint i, j ;
 
   amc_transform_check(T) ;
 
@@ -187,7 +204,7 @@ int amc_transform_matrix_write(FILE *f, amc_transform_t *T, int order)
 int amc_transform_expressions_compile(amc_transform_t *T)
 
 {
-  int i, error ;
+  gint i, error ;
 
   amc_transform_check(T) ;
 
@@ -210,14 +227,14 @@ int amc_transform_expressions_compile(amc_transform_t *T)
   return 0 ;
 }
 
-static int amc2d_matrix_vector_mul(double *y, double *A, double *x)
+static gint amc2d_matrix_vector_mul(gdouble *y, gdouble *A, gdouble *x)
 
 /*
  * y := A*x (safe to perform in place with x == y)
  */
   
 {
-  double tmp ;
+  gdouble tmp ;
   
   tmp  = A[0]*x[0] + A[1]*x[1] + A[2] ;
   y[1] = A[3]*x[0] + A[4]*x[1] + A[5] ;
@@ -226,16 +243,16 @@ static int amc2d_matrix_vector_mul(double *y, double *A, double *x)
   return 0 ;
 }
 
-static void amc2d_matrix_matrix_mul(double al, double *A, double *B,
-				    double bt, double *C)
+static void amc2d_matrix_matrix_mul(gdouble al, gdouble *A, gdouble *B,
+				    gdouble bt, gdouble *C)
 
 /*
  * C := bt*C + al*A*B (safe to perform in place with C == A or B)
  */
   
 {
-  double Ctmp[9] ;
-  int i ;
+  gdouble Ctmp[9] ;
+  gint i ;
 
   Ctmp[0] = A[0]*B[0] + A[1]*B[3] + A[2]*B[6] ;
   Ctmp[1] = A[0]*B[1] + A[1]*B[4] + A[2]*B[7] ;
@@ -252,14 +269,14 @@ static void amc2d_matrix_matrix_mul(double al, double *A, double *B,
   return ;
 }
 
-static int amc3d_matrix_vector_mul(double *y, double *A, double *x)
+static gint amc3d_matrix_vector_mul(gdouble *y, gdouble *A, gdouble *x)
 
 /*
  * y := A*x (safe to perform in place with x == y)
  */
   
 {
-  double tmp[2] ;
+  gdouble tmp[2] ;
   
   tmp[0]  = A[ 0]*x[0] + A[ 1]*x[1] + A[ 2]*x[2] + A[ 3] ;
   tmp[1]  = A[ 4]*x[0] + A[ 5]*x[1] + A[ 6]*x[2] + A[ 7] ;
@@ -269,16 +286,16 @@ static int amc3d_matrix_vector_mul(double *y, double *A, double *x)
   return 0 ;
 }
 
-static void amc3d_matrix_matrix_mul(double al, double *A, double *B,
-				    double bt, double *C)
+static void amc3d_matrix_matrix_mul(gdouble al, gdouble *A, gdouble *B,
+				    gdouble bt, gdouble *C)
 
 /*
  * C := bt*C + al*A*B (safe to perform in place with C == A or B)
  */
   
 {
-  double Ctmp[16] ;
-  int i ;
+  gdouble Ctmp[16] ;
+  gint i ;
 
   Ctmp[ 0] = A[ 0]*B[ 0] + A[ 1]*B[ 4] + A[ 2]*B[ 8] + A[ 3]*B[12] ;
   Ctmp[ 1] = A[ 0]*B[ 1] + A[ 1]*B[ 5] + A[ 2]*B[ 9] + A[ 3]*B[13] ;
@@ -316,11 +333,11 @@ static void amc3d_matrix_matrix_mul(double al, double *A, double *B,
  * @return 0 on success.
  */
 
-int amc_transform_matrix_apply(amc_transform_t *T, int order,
-			       double *xin, double *xout)
+int amc_transform_matrix_apply(amc_transform_t *T, gint order,
+			       gdouble *xin, gdouble *xout)
 
 {
-  double *A ;
+  gdouble *A ;
 
   amc_transform_check(T) ;
   
@@ -346,11 +363,11 @@ int amc_transform_matrix_apply(amc_transform_t *T, int order,
  * @return 0 on success.
  */
 
-int amc_transform_matrix_apply_vector(amc_transform_t *T, int order,
-				      double *xin, double *xout)
+int amc_transform_matrix_apply_vector(amc_transform_t *T, gint order,
+				      gdouble *xin, gdouble *xout)
 
 {
-  double *A, zero[3]={0,0,0}, dx0[3], dx1[3] ;
+  gdouble *A, zero[3]={0,0,0}, dx0[3], dx1[3] ;
 
   amc_transform_check(T) ;
   
@@ -383,10 +400,10 @@ int amc_transform_matrix_apply_vector(amc_transform_t *T, int order,
  * @return 0 on success.
  */
 
-int amc_transform_matrices_evaluate(amc_transform_t *T, double t)
+int amc_transform_matrices_evaluate(amc_transform_t *T, gdouble t)
 
 {
-  int i ;
+  gint i ;
 
   T->t = t ;
   for ( i = 0 ;
@@ -409,10 +426,11 @@ int amc_transform_matrices_evaluate(amc_transform_t *T, double t)
  * @return 0 on success.
  */
 
-int amc_transform_variable_add(amc_transform_t *T, char *str, double *adr)
+int amc_transform_variable_add(amc_transform_t *T, char *str, gdouble *adr)
   
 {
-  int i ;
+  gint i ;
+  te_variable *vars = (te_variable *)(T->vars) ;
   
   if ( amc_transform_variable_number(T) >= AMC_TRANSFORM_VARIABLE_NUMBER ) {
     fprintf(stderr, "%s: not enough space for %d variablesn",	
@@ -421,15 +439,15 @@ int amc_transform_variable_add(amc_transform_t *T, char *str, double *adr)
   }									
 
   for ( i = 0 ; i < amc_transform_variable_number(T) ; i ++ ) {
-    if ( strcmp(str, T->vars[i].name) == 0 ) {
+    if ( strcmp(str, vars[i].name) == 0 ) {
       fprintf(stderr, "%s: variable \"%s\" already in transform\n",
 	      __FUNCTION__, str) ;
       return 1 ;
     }
   }    
-  
-  T->vars[amc_transform_variable_number(T)].name = strdup(str) ;
-  T->vars[amc_transform_variable_number(T)].address = adr ;
+
+  vars[amc_transform_variable_number(T)].name = strdup(str) ;
+  vars[amc_transform_variable_number(T)].address = adr ;
   amc_transform_variable_number(T) ++ ;
 
   return 0 ;
@@ -447,12 +465,11 @@ int amc_transform_variable_add(amc_transform_t *T, char *str, double *adr)
 int amc_transform_variables_write(FILE *f, amc_transform_t *T)
   
 {									
-  int i ;								
+  gint i ;								
+  te_variable *vars = (te_variable *)(T->vars) ;
 
   for ( i = 0 ; i < amc_transform_variable_number(T) ; i ++ ) {	
-    fprintf(f, "%s = %lg\n",
-	    amc_transform_variable_name(T,i),
-	    *(amc_transform_variable_address(T,i))) ;
+    fprintf(f, "%s = %lg\n", vars[i].name, *((gdouble *)(vars[i].address))) ;
   }
 
   return 0 ;
@@ -472,14 +489,14 @@ amc_transform_chain_t *amc_transform_chain_alloc(int ntrans)
 {
   amc_transform_chain_t *C ;
   
-  C = (amc_transform_chain_t *)malloc(sizeof(amc_transform_chain_t *)) ;
+  C = (amc_transform_chain_t *)g_malloc0(sizeof(amc_transform_chain_t)) ;
 
   memset(C, 0, sizeof(amc_transform_chain_t)) ;
 
   amc_transform_chain_transform_number(C)     = 0 ;
   amc_transform_chain_transform_number_max(C) = ntrans ;
 
-  C->T = (amc_transform_t **)malloc(ntrans*sizeof(amc_transform_t *)) ;
+  C->T = (amc_transform_t **)g_malloc0(ntrans*sizeof(amc_transform_t *)) ;
   memset(C->T, 0, ntrans*sizeof(amc_transform_t *)) ;
 
   return C ;
@@ -512,7 +529,7 @@ int amc_transform_chain_transform_add(amc_transform_chain_t *C,
   return 0 ;
 }
 
-static int amc2d_matrix_identity(double *A)
+static gint amc2d_matrix_identity(gdouble *A)
 
 {
   A[0] = 1 ; A[1] = 0 ; A[2] = 0 ;
@@ -522,7 +539,7 @@ static int amc2d_matrix_identity(double *A)
   return 0 ;
 }
 
-static int amc3d_matrix_identity(double *A)
+static gint amc3d_matrix_identity(gdouble *A)
 
 {
   A[ 0] = 1 ; A[ 1] = 0 ; A[ 2] = 0 ; A[ 3] = 0 ;
@@ -542,10 +559,10 @@ static int amc3d_matrix_identity(double *A)
  * @return 0 on success.
  */
 
-int amc_transform_matrix_identity(amc_transform_t *T, int order)
+int amc_transform_matrix_identity(amc_transform_t *T, gint order)
 
 {
-  double *A ;
+  gdouble *A ;
   
   amc_transform_check(T) ;
 
@@ -558,7 +575,7 @@ int amc_transform_matrix_identity(amc_transform_t *T, int order)
   return amc3d_matrix_identity(A) ;
 }
 
-static int amc2d_matrix_zero(double *A)
+static gint amc2d_matrix_zero(gdouble *A)
 
 {
   A[0] = 0 ; A[1] = 0 ; A[2] = 0 ;
@@ -568,7 +585,7 @@ static int amc2d_matrix_zero(double *A)
   return 0 ;
 }
 
-static int amc3d_matrix_zero(double *A)
+static gint amc3d_matrix_zero(gdouble *A)
 
 {
   A[ 0] = 0 ; A[ 1] = 0 ; A[ 2] = 0 ; A[ 3] = 0 ;
@@ -588,10 +605,10 @@ static int amc3d_matrix_zero(double *A)
  * @return 0 on success.
  */
 
-int amc_transform_matrix_zero(amc_transform_t *T, int order)
+int amc_transform_matrix_zero(amc_transform_t *T, gint order)
 
 {
-  double *A ;
+  gdouble *A ;
   
   amc_transform_check(T) ;
 
@@ -603,12 +620,12 @@ int amc_transform_matrix_zero(amc_transform_t *T, int order)
   return amc3d_matrix_zero(A) ;
 }
 
-static int amc2d_transform_chain_evaluate(amc_transform_chain_t *C, int order,
+static gint amc2d_transform_chain_evaluate(amc_transform_chain_t *C, gint order,
 					  amc_transform_t *T)
 
 {
-  int i, j ;
-  double *A, *B, *Bdot, tmp[9] ;
+  gint i, j ;
+  gdouble *A, *B, *Bdot, tmp[9] ;
   amc_transform_t *S ;
   
   amc_transform_matrix_identity(T, 0) ;
@@ -655,12 +672,12 @@ static int amc2d_transform_chain_evaluate(amc_transform_chain_t *C, int order,
   return 0 ;
 }
 
-static int amc3d_transform_chain_evaluate(amc_transform_chain_t *C, int order,
+static gint amc3d_transform_chain_evaluate(amc_transform_chain_t *C, gint order,
 					  amc_transform_t *T)
 
 {
-  int i, j ;
-  double *A, *B, *Bdot, tmp[16] ;
+  gint i, j ;
+  gdouble *A, *B, *Bdot, tmp[16] ;
   amc_transform_t *S ;
   
   amc_transform_matrix_identity(T, 0) ;
@@ -718,7 +735,7 @@ static int amc3d_transform_chain_evaluate(amc_transform_chain_t *C, int order,
  * @return 0 on success.
  */
 
-int amc_transform_chain_evaluate(amc_transform_chain_t *C, int order,
+int amc_transform_chain_evaluate(amc_transform_chain_t *C, gint order,
 				 amc_transform_t *T)
 
 {
@@ -746,12 +763,12 @@ int amc_transform_chain_evaluate(amc_transform_chain_t *C, int order,
  * @return 0 on success.
  */
 
-int amc_transform_chain_derivative(amc_transform_chain_t *C, int order,
-				   amc_transform_t *S, double t,
-				   double *x, double *dx)
+int amc_transform_chain_derivative(amc_transform_chain_t *C, gint order,
+				   amc_transform_t *S, gdouble t,
+				   gdouble *x, gdouble *dx)
 {
-  int i ;
-  double dt, x0[3], x1[3] ;
+  gint i ;
+  gdouble dt, x0[3], x1[3] ;
 
   dt = 1e-6 ;
   for ( i = 0 ; i < amc_transform_chain_transform_number(C) ; i ++ ) {
@@ -797,10 +814,10 @@ int amc_transform_chain_derivative(amc_transform_chain_t *C, int order,
  */
 
 int amc_transform_translation(amc_transform_t *T,
-			      double dx, char *xstr,
-			      double dy, char *ystr,
-			      double dz, char *zstr,
-			      int order)
+			      gdouble dx, char *xstr,
+			      gdouble dy, char *ystr,
+			      gdouble dz, char *zstr,
+			      gint order)
 
 /*
  * translation by (dx,dy,dx) or (xstr, ystr, zstr), z component
@@ -808,8 +825,8 @@ int amc_transform_translation(amc_transform_t *T,
  */
 
 {
-  int i ;
-  double d[3] = {dx, dy, dz} ;
+  gint i ;
+  gdouble d[3] = {dx, dy, dz} ;
   char *dstr[] = {xstr, ystr, zstr} ;
   
   amc_transform_check(T) ;
@@ -848,11 +865,11 @@ int amc_transform_translation(amc_transform_t *T,
  * @return 0 on success.
  */
 
-int amc_transform_rotation(amc_transform_t *T, double th, char *str,
-			   int order)
+int amc_transform_rotation(amc_transform_t *T, gdouble th, char *str,
+			   gint order)
 
 {
-  int i ;
+  gint i ;
   char buf[256] ;
   
   if ( amc_transform_dimension(T) != 2 ) {
@@ -912,11 +929,11 @@ int amc_transform_rotation(amc_transform_t *T, double th, char *str,
  * @return 0 on success.
  */
 
-int amc_transform_rotation_x(amc_transform_t *T, double th, char *str,
-			     int order)
+int amc_transform_rotation_x(amc_transform_t *T, gdouble th, char *str,
+			     gint order)
 
 {
-  int i ;
+  gint i ;
   char buf[256] ;
   
   if ( order > amc_transform_order_max(T) ) {
@@ -971,11 +988,11 @@ int amc_transform_rotation_x(amc_transform_t *T, double th, char *str,
  * @return 0 on success.
  */
 
-int amc_transform_rotation_y(amc_transform_t *T, double th, char *str,
-			     int order)			     
+int amc_transform_rotation_y(amc_transform_t *T, gdouble th, char *str,
+			     gint order)			     
 
 {
-  int i ;
+  gint i ;
   char buf[256] ;
   
   if ( order > amc_transform_order_max(T) ) {
@@ -1029,11 +1046,11 @@ int amc_transform_rotation_y(amc_transform_t *T, double th, char *str,
  * @return 0 on success.
  */
 
-int amc_transform_rotation_z(amc_transform_t *T, double th, char *str,
-			     int order)
+int amc_transform_rotation_z(amc_transform_t *T, gdouble th, char *str,
+			     gint order)
 			     
 {
-  int i ;
+  gint i ;
   char buf[256] ;
   
   if ( order > amc_transform_order_max(T) ) {
@@ -1086,7 +1103,7 @@ int amc_transform_rotation_z(amc_transform_t *T, double th, char *str,
  * @return 0 on success.
  */
 
-int amc_transform_derivatives_evaluate(amc_transform_t *T, int order)
+int amc_transform_derivatives_evaluate(amc_transform_t *T, gint order)
 
 {
   if ( order > amc_transform_order_max(T) ) {
@@ -1103,7 +1120,7 @@ int amc_transform_derivatives_evaluate(amc_transform_t *T, int order)
 
   void *e0, *e1 ;
   char *estr ;
-  int i, j ;
+  gint i, j ;
 
   for ( i = 0 ; i < amc_transform_matrix_size(T) ; i ++ ) {
     if ( T->matrix_strings[i] != NULL ) {
@@ -1148,12 +1165,12 @@ int amc_transform_derivatives_evaluate(amc_transform_t *T, int order)
  * @return 0 on success
  */
 
-int amc_transform_derivative_check(amc_transform_t *T, int order,
-				   double t, double dt,
-				   int *imax, double *emax)
+int amc_transform_derivative_check(amc_transform_t *T, gint order,
+				   gdouble t, gdouble dt,
+				   gint *imax, gdouble *emax)
 {
-  int i, n ;
-  double df, d ;
+  gint i, n ;
+  gdouble df, d ;
     
   if ( order < 1 ) {
     fprintf(stderr, "%s: cannot evaluate derivative of order %d\n",
@@ -1224,11 +1241,11 @@ char *amc_cos_derivative(int i)
  * @return 0 on success
  */
 
-int amc_transform_chain_matrices_evaluate(amc_transform_chain_t *C, double t,
-					  amc_transform_t *T, int order)
+int amc_transform_chain_matrices_evaluate(amc_transform_chain_t *C, gdouble t,
+					  amc_transform_t *T, gint order)
 
 {
-  int i ;
+  gint i ;
 
   for ( i = 0 ; i < amc_transform_chain_transform_number(C) ; i ++ ) {
     amc_transform_matrices_evaluate(amc_transform_chain_transform(C,i), t) ;
@@ -1237,6 +1254,53 @@ int amc_transform_chain_matrices_evaluate(amc_transform_chain_t *C, double t,
   if ( T == NULL ) return 0 ;
   
   amc_transform_chain_evaluate(C, order, T) ;
+  
+  return 0 ;
+}
+
+amc_transform_definition_t amc_transform_definition_parse(char *str)
+
+{
+  amc_transform_definition_t def[] = {
+    AMC_TRANSFORM_DEFINITION_UNKNOWN,
+    AMC_TRANSFORM_DEFINITION_MATRIX,
+    AMC_TRANSFORM_DEFINITION_ROTATION_X,
+    AMC_TRANSFORM_DEFINITION_ROTATION_Y,
+    AMC_TRANSFORM_DEFINITION_ROTATION_Z,
+    AMC_TRANSFORM_DEFINITION_UNKNOWN    
+  } ;
+  char *f[] = {
+    "unknown",
+    "matrix",
+    "rotation_x",
+    "rotation_y",
+    "rotation_z",
+    NULL} ;
+  gint i ;
+
+  for ( i = 0 ; f[i] != NULL ; i ++ ) {
+    if ( strcmp(str, f[i]) == 0 ) return def[i] ;
+  }
+  
+  return AMC_TRANSFORM_DEFINITION_UNKNOWN ;
+}
+
+gint amc_transform_parse(amc_transform_t *T, char *str, gdouble val,
+			 gint order)
+
+{
+  switch ( amc_transform_definition(T) ) {
+  default: g_assert_not_reached() ; break ;
+  case AMC_TRANSFORM_DEFINITION_ROTATION_X:
+    amc_transform_rotation_x(T, val, str, order) ;
+    break ;
+  case AMC_TRANSFORM_DEFINITION_ROTATION_Y:
+    amc_transform_rotation_y(T, val, str, order) ;
+    break ;
+  case AMC_TRANSFORM_DEFINITION_ROTATION_Z:
+    amc_transform_rotation_z(T, val, str, order) ;
+    break ;
+  }
   
   return 0 ;
 }

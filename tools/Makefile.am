@@ -5,4 +5,4 @@ LDADD = $(top_builddir)/src/.libs/libamc.a
 
 DEPS = $(top_builddir)/src/libamc.la
 
-bin_PROGRAMS = amc-test
+bin_PROGRAMS = amc-test amc-parse

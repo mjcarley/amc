@@ -1,7 +1,4 @@
 /**
-  @mainpage Lifting Line Theory for aerodynamics
+  @mainpage Affine Motion Calculation 
 
-  @defgroup lattice Vortex lattices
-  	    
-  @defgroup vorticity Vortex particles
 */

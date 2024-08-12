@@ -8,6 +8,7 @@ libamc_la_LDFLAGS = -version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE)\
 libamc_la_SOURCES = \
 	amc.c \
 	amc.h \
+	frame.c \
 	tinyexpr.c \
 	tinyexpr.h
 

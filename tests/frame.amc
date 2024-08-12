@@ -1,0 +1,35 @@
+variable::Omega = 104.72
+variable::U = 0
+variable::V = 0
+variable::W = 10
+
+dimension = 3
+
+## transforms start here
+transform::shift = rotation_x("Omega*t")
+transform::rotation = [
+"cos(Omega*t)" "-sin(Omega*t)" 0 0 
+"sin(Omega*t)" "cos(Omega*t)" 0 0 
+0 0 1 0 
+0 0 0 1 
+]
+transform::translation = [
+1 0 0 "U*t" 
+0 1 0 "V*t" 
+0 0 1 "W*(1-exp(-t))*t" 
+0 0 0 1 
+]
+transform::left = [
+1 0 0 0 
+0 1 0 -3
+0 0 1 0 
+0 0 0 1 
+]
+transform::right = [
+1 0 0 0 
+0 1 0 3 
+0 0 1 0 
+0 0 0 1 
+]
+chain::left = [translation]*[left]*[rotation]
+chain::right = [translation]*[right]*[rotation]
