@@ -129,7 +129,7 @@ amc.lo: amc.c /usr/include/stdc-predef.h ../config.h /usr/include/math.h \
  /usr/include/bits/setjmp.h \
  /usr/include/bits/types/struct___jmp_buf_tag.h \
  /usr/include/glib-2.0/glib/glib-autocleanups.h tinyexpr.h amc.h \
- /home/michael/Codes/include/matheval.h
+ amc-private.h /home/michael/Codes/include/matheval.h
 /usr/include/stdc-predef.h:
 ../config.h:
 /usr/include/math.h:
@@ -329,4 +329,5 @@ amc.lo: amc.c /usr/include/stdc-predef.h ../config.h /usr/include/math.h \
 /usr/include/glib-2.0/glib/glib-autocleanups.h:
 tinyexpr.h:
 amc.h:
+amc-private.h:
 /home/michael/Codes/include/matheval.h:

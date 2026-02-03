@@ -703,7 +703,7 @@ static void frame_test_3d(void)
   x[0] = 0.5 ; x[1] = 0.0 ; x[2] = 0.0 ;
 
   for ( t = 0 ; t < 1.0/8 ; t += 1.0/2048 ) {
-    amc_frame_evaluate(F, t) ;
+    amc_frame_transforms_evaluate(F, t) ;
     for ( i = 0 ; i < amc_frame_transform_chain_number(F) ; i ++ ) {
       amc_transform_chain_evaluate(amc_frame_transform_chain(F,i), 0, S) ;
       amc_transform_matrix_apply(S, 0, x, y) ;

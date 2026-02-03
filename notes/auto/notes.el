@@ -8,6 +8,9 @@
     "article"
     "art12"
     "amsmath"
-    "times"))
+    "times")
+   (LaTeX-add-labels
+    "sec:affine"
+    "sec:use"))
  :latex)
 

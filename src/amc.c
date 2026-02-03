@@ -28,19 +28,18 @@
 #include "tinyexpr.h"
 
 #include "amc.h"
+#include "amc-private.h"
 
 #ifdef HAVE_LIBMATHEVAL
 #include <matheval.h>
 #endif /*HAVE_LIBMATHEVAL*/
 
 /**
- * @file   amc.c
- * @author  <michael@michael.paraffinalia.co.uk>
- * @date   Fri May 17 09:08:48 2024
- * 
- * @brief  
- * 
- * 
+ *
+ * @addtogroup transform
+ *
+ * @{
+ *
  */
 
 /** 
@@ -227,101 +226,6 @@ int amc_transform_expressions_compile(amc_transform_t *T)
   return 0 ;
 }
 
-static gint amc2d_matrix_vector_mul(gdouble *y, gdouble *A, gdouble *x)
-
-/*
- * y := A*x (safe to perform in place with x == y)
- */
-  
-{
-  gdouble tmp ;
-  
-  tmp  = A[0]*x[0] + A[1]*x[1] + A[2] ;
-  y[1] = A[3]*x[0] + A[4]*x[1] + A[5] ;
-  y[0] = tmp ;
-
-  return 0 ;
-}
-
-static void amc2d_matrix_matrix_mul(gdouble al, gdouble *A, gdouble *B,
-				    gdouble bt, gdouble *C)
-
-/*
- * C := bt*C + al*A*B (safe to perform in place with C == A or B)
- */
-  
-{
-  gdouble Ctmp[9] ;
-  gint i ;
-
-  Ctmp[0] = A[0]*B[0] + A[1]*B[3] + A[2]*B[6] ;
-  Ctmp[1] = A[0]*B[1] + A[1]*B[4] + A[2]*B[7] ;
-  Ctmp[2] = A[0]*B[2] + A[1]*B[5] + A[2]*B[8] ;
-  Ctmp[3] = A[3]*B[0] + A[4]*B[3] + A[5]*B[6] ;
-  Ctmp[4] = A[3]*B[1] + A[4]*B[4] + A[5]*B[7] ;
-  Ctmp[5] = A[3]*B[2] + A[4]*B[5] + A[5]*B[8] ;
-  Ctmp[6] = A[6]*B[0] + A[7]*B[3] + A[8]*B[6] ;
-  Ctmp[7] = A[6]*B[1] + A[7]*B[4] + A[8]*B[7] ;
-  Ctmp[8] = A[6]*B[2] + A[7]*B[5] + A[8]*B[8] ;
-
-  for ( i = 0 ; i < 9 ; i ++ ) C[i] = bt*C[i] + al*Ctmp[i] ;
-
-  return ;
-}
-
-static gint amc3d_matrix_vector_mul(gdouble *y, gdouble *A, gdouble *x)
-
-/*
- * y := A*x (safe to perform in place with x == y)
- */
-  
-{
-  gdouble tmp[2] ;
-  
-  tmp[0]  = A[ 0]*x[0] + A[ 1]*x[1] + A[ 2]*x[2] + A[ 3] ;
-  tmp[1]  = A[ 4]*x[0] + A[ 5]*x[1] + A[ 6]*x[2] + A[ 7] ;
-  y[2]    = A[ 8]*x[0] + A[ 9]*x[1] + A[10]*x[2] + A[11] ;
-  y[0] = tmp[0] ; y[1] = tmp[1] ;
-
-  return 0 ;
-}
-
-static void amc3d_matrix_matrix_mul(gdouble al, gdouble *A, gdouble *B,
-				    gdouble bt, gdouble *C)
-
-/*
- * C := bt*C + al*A*B (safe to perform in place with C == A or B)
- */
-  
-{
-  gdouble Ctmp[16] ;
-  gint i ;
-
-  Ctmp[ 0] = A[ 0]*B[ 0] + A[ 1]*B[ 4] + A[ 2]*B[ 8] + A[ 3]*B[12] ;
-  Ctmp[ 1] = A[ 0]*B[ 1] + A[ 1]*B[ 5] + A[ 2]*B[ 9] + A[ 3]*B[13] ;
-  Ctmp[ 2] = A[ 0]*B[ 2] + A[ 1]*B[ 6] + A[ 2]*B[10] + A[ 3]*B[14] ;
-  Ctmp[ 3] = A[ 0]*B[ 3] + A[ 1]*B[ 7] + A[ 2]*B[11] + A[ 3]*B[15] ;
-
-  Ctmp[ 4] = A[ 4]*B[ 0] + A[ 5]*B[ 4] + A[ 6]*B[ 8] + A[ 7]*B[12] ;
-  Ctmp[ 5] = A[ 4]*B[ 1] + A[ 5]*B[ 5] + A[ 6]*B[ 9] + A[ 7]*B[13] ;
-  Ctmp[ 6] = A[ 4]*B[ 2] + A[ 5]*B[ 6] + A[ 6]*B[10] + A[ 7]*B[14] ;
-  Ctmp[ 7] = A[ 4]*B[ 3] + A[ 5]*B[ 7] + A[ 6]*B[11] + A[ 7]*B[15] ;
-
-  Ctmp[ 8] = A[ 8]*B[ 0] + A[ 9]*B[ 4] + A[10]*B[ 8] + A[11]*B[12] ;
-  Ctmp[ 9] = A[ 8]*B[ 1] + A[ 9]*B[ 5] + A[10]*B[ 9] + A[11]*B[13] ;
-  Ctmp[10] = A[ 8]*B[ 2] + A[ 9]*B[ 6] + A[10]*B[10] + A[11]*B[14] ;
-  Ctmp[11] = A[ 8]*B[ 3] + A[ 9]*B[ 7] + A[10]*B[11] + A[11]*B[15] ;
-  
-  Ctmp[12] = A[12]*B[ 0] + A[13]*B[ 4] + A[14]*B[ 8] + A[15]*B[12] ;
-  Ctmp[13] = A[12]*B[ 1] + A[13]*B[ 5] + A[14]*B[ 9] + A[15]*B[13] ;
-  Ctmp[14] = A[12]*B[ 2] + A[13]*B[ 6] + A[14]*B[10] + A[15]*B[14] ;
-  Ctmp[15] = A[12]*B[ 3] + A[13]*B[ 7] + A[14]*B[11] + A[15]*B[15] ;
-  
-  for ( i = 0 ; i < 16 ; i ++ ) C[i] = bt*C[i] + al*Ctmp[i] ;
-
-  return ;
-}
-
 /** 
  * Apply a transform to a point
  * 
@@ -344,10 +248,11 @@ int amc_transform_matrix_apply(amc_transform_t *T, gint order,
   A = amc_transform_matrix(T, order) ;
 
   if ( amc_transform_dimension(T) == 2 ) {
-    return amc2d_matrix_vector_mul(xout, A, xin) ;
+    amc2d_matrix_vector_mul(xout, A, xin) ;
+    return 0 ;
   }
   
-  return amc3d_matrix_vector_mul(xout, A, xin) ;
+  amc3d_matrix_vector_mul(xout, A, xin) ;
 
   return 0 ;
 }
@@ -476,81 +381,6 @@ int amc_transform_variables_write(FILE *f, amc_transform_t *T)
 }
 
 /** 
- * Allocate a transform chain, a sequence of transforms to be applied
- * successively
- * 
- * @param ntrans maximum number of transforms in chain.
- * 
- * @return newly allocated ::amc_transform_chain_t.
- */
-
-amc_transform_chain_t *amc_transform_chain_alloc(int ntrans)
-
-{
-  amc_transform_chain_t *C ;
-  
-  C = (amc_transform_chain_t *)g_malloc0(sizeof(amc_transform_chain_t)) ;
-
-  memset(C, 0, sizeof(amc_transform_chain_t)) ;
-
-  amc_transform_chain_transform_number(C)     = 0 ;
-  amc_transform_chain_transform_number_max(C) = ntrans ;
-
-  C->T = (amc_transform_t **)g_malloc0(ntrans*sizeof(amc_transform_t *)) ;
-  memset(C->T, 0, ntrans*sizeof(amc_transform_t *)) ;
-
-  return C ;
-}
-
-/** 
- * Add a transform to a chain of transforms
- * 
- * @param C an allocated ::amc_transform_chain_t;
- * @param T ::amc_transform_t to be added to chain.
- * 
- * @return 0 on success, or 1 if the maximum number of transforms in
- * \a C has been reached.
- */
-
-int amc_transform_chain_transform_add(amc_transform_chain_t *C,
-				      amc_transform_t *T)
-
-{
-  if ( amc_transform_chain_transform_number(C) >=
-       amc_transform_chain_transform_number_max(C) ) {
-    fprintf(stderr, "%s: not enough space allocated for %d transforms\n",
-	    __FUNCTION__, amc_transform_chain_transform_number(C) + 1) ;
-    return 1 ;
-  }
-
-  amc_transform_chain_transform(C,amc_transform_chain_transform_number(C)) = T ;
-  amc_transform_chain_transform_number(C) ++ ;
-  
-  return 0 ;
-}
-
-static gint amc2d_matrix_identity(gdouble *A)
-
-{
-  A[0] = 1 ; A[1] = 0 ; A[2] = 0 ;
-  A[3] = 0 ; A[4] = 1 ; A[5] = 0 ;
-  A[6] = 0 ; A[7] = 0 ; A[8] = 1 ;
-
-  return 0 ;
-}
-
-static gint amc3d_matrix_identity(gdouble *A)
-
-{
-  A[ 0] = 1 ; A[ 1] = 0 ; A[ 2] = 0 ; A[ 3] = 0 ;
-  A[ 4] = 0 ; A[ 5] = 1 ; A[ 6] = 0 ; A[ 7] = 0 ;
-  A[ 8] = 0 ; A[ 9] = 0 ; A[10] = 1 ; A[11] = 0 ;
-  A[12] = 0 ; A[13] = 0 ; A[14] = 0 ; A[15] = 1 ;
-
-  return 0 ;
-}
-
-/** 
  * Set a transform to the identity matrix
  * 
  * @param T an ::amc_transform_t;
@@ -569,10 +399,12 @@ int amc_transform_matrix_identity(amc_transform_t *T, gint order)
   A = amc_transform_matrix(T, order) ;
 
   if ( amc_transform_dimension(T) == 2 ) {
-    return amc2d_matrix_identity(A) ;
+    amc2d_matrix_identity(A) ;
+    return 0 ;
   }
   
-  return amc3d_matrix_identity(A) ;
+  amc3d_matrix_identity(A) ;
+  return 0 ;
 }
 
 static gint amc2d_matrix_zero(gdouble *A)
@@ -618,136 +450,6 @@ int amc_transform_matrix_zero(amc_transform_t *T, gint order)
   }
 
   return amc3d_matrix_zero(A) ;
-}
-
-static gint amc2d_transform_chain_evaluate(amc_transform_chain_t *C, gint order,
-					  amc_transform_t *T)
-
-{
-  gint i, j ;
-  gdouble *A, *B, *Bdot, tmp[9] ;
-  amc_transform_t *S ;
-  
-  amc_transform_matrix_identity(T, 0) ;
-
-  A = amc_transform_matrix(T, 0) ;
-
-  /*order 0*/
-  for ( i = 0 ; i < amc_transform_chain_transform_number(C) ; i ++ ) {
-    S = amc_transform_chain_transform(C, i) ;
-    B = amc_transform_matrix(S, 0) ;
-    amc2d_matrix_matrix_mul(1.0, B, A, 0, A) ;
-  }
-
-  if ( order == 0 ) return 0 ;
-
-  amc_transform_matrix_zero(T, 1) ;
-
-  A = amc_transform_matrix(T, 1) ;
-
-  for ( i = 0 ; i < amc_transform_chain_transform_number(C) ; i ++ ) {
-    amc2d_matrix_identity(tmp) ;
-    for ( j = 0 ; j < i ; j ++ ) {
-      S = amc_transform_chain_transform(C, j) ;
-      B = amc_transform_matrix(S, 0) ;
-      amc2d_matrix_matrix_mul(1.0, B, tmp, 0.0, tmp) ;
-    }
-    S = amc_transform_chain_transform(C, i) ;
-    Bdot = amc_transform_matrix(S, 1) ;
-    amc2d_matrix_matrix_mul(1.0, Bdot, tmp, 0.0, tmp) ;
-    for ( j = i+1 ; j < amc_transform_chain_transform_number(C) ; j ++ ) {
-      S = amc_transform_chain_transform(C, j) ;
-      B = amc_transform_matrix(S, 0) ;
-      amc2d_matrix_matrix_mul(1.0, B, tmp, 0.0, tmp) ;
-    }
-    for ( j = 0 ; j < 9 ; j ++ ) A[j] += tmp[j] ;
-  }
-
-  if ( order == 1 ) return 0 ;
-
-  fprintf(stderr,
-	  "%s: shouldn't get here (higher derivatives not implemented yet\n",
-	  __FUNCTION__) ;
-  
-  return 0 ;
-}
-
-static gint amc3d_transform_chain_evaluate(amc_transform_chain_t *C, gint order,
-					  amc_transform_t *T)
-
-{
-  gint i, j ;
-  gdouble *A, *B, *Bdot, tmp[16] ;
-  amc_transform_t *S ;
-  
-  amc_transform_matrix_identity(T, 0) ;
-
-  A = amc_transform_matrix(T, 0) ;
-
-  /*order 0*/
-  for ( i = 0 ; i < amc_transform_chain_transform_number(C) ; i ++ ) {
-    S = amc_transform_chain_transform(C, i) ;
-    B = amc_transform_matrix(S, 0) ;
-    amc3d_matrix_matrix_mul(1.0, B, A, 0, A) ;
-  }
-
-  if ( order == 0 ) return 0 ;
-
-  amc_transform_matrix_zero(T, 1) ;
-
-  A = amc_transform_matrix(T, 1) ;
-
-  for ( i = 0 ; i < amc_transform_chain_transform_number(C) ; i ++ ) {
-    amc3d_matrix_identity(tmp) ;
-    for ( j = 0 ; j < i ; j ++ ) {
-      S = amc_transform_chain_transform(C, j) ;
-      B = amc_transform_matrix(S, 0) ;
-      amc3d_matrix_matrix_mul(1.0, B, tmp, 0.0, tmp) ;
-    }
-    S = amc_transform_chain_transform(C, i) ;
-    Bdot = amc_transform_matrix(S, 1) ;
-    amc3d_matrix_matrix_mul(1.0, Bdot, tmp, 0.0, tmp) ;
-    for ( j = i+1 ; j < amc_transform_chain_transform_number(C) ; j ++ ) {
-      S = amc_transform_chain_transform(C, j) ;
-      B = amc_transform_matrix(S, 0) ;
-      amc3d_matrix_matrix_mul(1.0, B, tmp, 0.0, tmp) ;
-    }
-    for ( j = 0 ; j < 16 ; j ++ ) A[j] += tmp[j] ;
-  }
-
-  if ( order == 1 ) return 0 ;
-
-  fprintf(stderr,
-	  "%s: shouldn't get here (higher derivatives not implemented yet\n",
-	  __FUNCTION__) ;
-  
-  return 0 ;
-}
-
-/** 
- * Evaluate a sequence of transforms in a chain, including time derivatives
- * 
- * @param C chain of transforms, which have been evaluated at required time; 
- * @param order maximum derivative to evaluate;
- * @param T on exit, contains sequence of transforms, including time 
- * derivatives. 
- * 
- * @return 0 on success.
- */
-
-int amc_transform_chain_evaluate(amc_transform_chain_t *C, gint order,
-				 amc_transform_t *T)
-
-{
-  amc_transform_check(T) ;
-
-  if ( amc_transform_dimension(T) == 2 ) {
-    return amc2d_transform_chain_evaluate(C, order, T) ;
-  }
-  
-  return amc3d_transform_chain_evaluate(C, order, T) ;
-
-  return 0 ;
 }
 
 /** 
@@ -797,300 +499,6 @@ int amc_transform_chain_derivative(amc_transform_chain_t *C, gint order,
   return 0 ;
 }
 
-/** 
- * Set transform to translation by possibly time-dependent displacement
- * 
- * @param T ::amc_transform_t to set;
- * @param dx \f$x\f$ displacement;
- * @param xstr if not NULL, symbolic expression for \a dx;
- * @param dy \f$y\f$ displacement;
- * @param ystr if not NULL, symbolic expression for \a dy;
- * @param dz \f$z\f$ displacement (ignored for two-dimensional transform);
- * @param zstr if not NULL, symbolic expression for \a dz (ignored for
- * two-dimensional transform);
- * @param order maximum order of derivatives to evaluate.
- * 
- * @return 0 on success.
- */
-
-int amc_transform_translation(amc_transform_t *T,
-			      gdouble dx, char *xstr,
-			      gdouble dy, char *ystr,
-			      gdouble dz, char *zstr,
-			      gint order)
-
-/*
- * translation by (dx,dy,dx) or (xstr, ystr, zstr), z component
- * ignored for two-dimensional transformations
- */
-
-{
-  gint i ;
-  gdouble d[3] = {dx, dy, dz} ;
-  char *dstr[] = {xstr, ystr, zstr} ;
-  
-  amc_transform_check(T) ;
-
-  if ( order > amc_transform_order_max(T) ) {
-    fprintf(stderr, "%s: order (%d) greater than maximum "
-	    "transform order (%d)\n",
-	    __FUNCTION__, order, amc_transform_order_max(T)) ;
-    return 1 ;
-  }
-
-  amc_transform_matrix_identity(T, 0) ;
-  for ( i = 1 ; i <= amc_transform_order_max(T) ; i ++ ) {
-    amc_transform_matrix_zero(T, i) ;
-  }
-
-  for ( i = 0 ; i < amc_transform_dimension(T) ; i ++ ) {
-    amc_transform_entry_set(T, 0, i, amc_transform_dimension(T),
-			    d[i], dstr[i]) ;
-  }
-  
-  amc_transform_derivatives_evaluate(T, order) ;
-
-  return 0 ;
-}
-
-/** 
- * Set two-dimensional transform to rotation in \f$x\f$-\f$y\f$ plane
- * 
- * @param T ::amc_transform_t to set;
- * @param th rotation angle \f$\theta\f$;
- * @param str if not NULL, symbolic expression for \f$\theta\f$, which 
- * overrides numerical value \a th;
- * @param order maximum order of derivatives to evaluate.
- * 
- * @return 0 on success.
- */
-
-int amc_transform_rotation(amc_transform_t *T, gdouble th, char *str,
-			   gint order)
-
-{
-  gint i ;
-  char buf[256] ;
-  
-  if ( amc_transform_dimension(T) != 2 ) {
-    fprintf(stderr, "%s: only defined for two-dimensional transform\n",
-	    __FUNCTION__) ;
-    return 1 ;
-  }
-  
-  if ( order > amc_transform_order(T) ) {
-    fprintf(stderr, "%s: order (%d) greater than transform order (%d)\n",
-	    __FUNCTION__, order, amc_transform_order(T)) ;
-    return 1 ;
-  }
-  if ( order > amc_transform_order_max(T) ) {
-    fprintf(stderr, "%s: order (%d) greater than maximum "
-	    "transform order (%d)\n",
-	    __FUNCTION__, order, amc_transform_order_max(T)) ;
-    return 1 ;
-  }
-
-  amc_transform_matrix_identity(T, 0) ;
-  for ( i = 1 ; i <= amc_transform_order_max(T) ; i ++ ) {
-    amc_transform_matrix_zero(T, i) ;
-  }
-
-  if ( str == NULL ) {
-    amc_transform_entry_set(T, 0, 0, 0,  cos(th), NULL) ;
-    amc_transform_entry_set(T, 0, 0, 1, -sin(th), NULL) ;
-    amc_transform_entry_set(T, 0, 1, 0,  sin(th), NULL) ;
-    amc_transform_entry_set(T, 0, 1, 1,  cos(th), NULL) ;
-    
-    return 0 ;
-  }
-
-  sprintf(buf, "cos(%s)", str) ;
-  amc_transform_entry_set(T, 0, 0, 0, 0, buf) ;
-  amc_transform_entry_set(T, 0, 1, 1, 0, buf) ;
-  sprintf(buf, "-sin(%s)", str) ;
-  amc_transform_entry_set(T, 0, 1, 0, 0, buf) ;
-  sprintf(buf, "sin(%s)", str) ;
-  amc_transform_entry_set(T, 0, 0, 1, 0, buf) ;
-    
-  amc_transform_derivatives_evaluate(T, order) ;
-
-  return 0 ;
-}
-
-/** 
- * Set three-dimensional transform to rotation about \f$x\f$ axis
- * 
- * @param T ::amc_transform_t to set;
- * @param th rotation angle \f$\theta\f$ about \f$x\f$ axis;
- * @param str if not NULL, symbolic expression for \f$\theta\f$, which 
- * overrides numerical value \a th;
- * @param order maximum order of derivatives to evaluate.
- * 
- * @return 0 on success.
- */
-
-int amc_transform_rotation_x(amc_transform_t *T, gdouble th, char *str,
-			     gint order)
-
-{
-  gint i ;
-  char buf[256] ;
-  
-  if ( order > amc_transform_order_max(T) ) {
-    fprintf(stderr, "%s: order (%d) greater than maximum "
-	    "transform order (%d)\n",
-	    __FUNCTION__, order, amc_transform_order_max(T)) ;
-    return 1 ;
-  }
-
-  if ( amc_transform_dimension(T) != 3 ) {
-    fprintf(stderr, "%s: only defined for three-dimensional transform\n",
-	    __FUNCTION__) ;
-    return 1 ;
-  }
-
-  amc_transform_matrix_identity(T, 0) ;
-  for ( i = 1 ; i <= amc_transform_order_max(T) ; i ++ ) {
-    amc_transform_matrix_zero(T, i) ;
-  }
-
-  if ( str == NULL ) {
-    amc_transform_entry_set(T, 0, 1, 1,  cos(th), NULL) ;
-    amc_transform_entry_set(T, 0, 1, 2, -sin(th), NULL) ;
-    amc_transform_entry_set(T, 0, 2, 1,  sin(th), NULL) ;
-    amc_transform_entry_set(T, 0, 2, 2,  cos(th), NULL) ;
-  
-    return 0 ;
-  }
-
-  sprintf(buf, "cos(%s)", str) ;
-  amc_transform_entry_set(T, 0, 1, 1, 0, buf) ;
-  amc_transform_entry_set(T, 0, 2, 2, 0, buf) ;
-  sprintf(buf, "-sin(%s)", str) ;
-  amc_transform_entry_set(T, 0, 1, 2, 0, buf) ;
-  sprintf(buf, "sin(%s)", str) ;
-  amc_transform_entry_set(T, 0, 2, 1, 0, buf) ;
-
-  amc_transform_derivatives_evaluate(T, order) ;
-  
-  return 0 ;
-}
-
-/** 
- * Set three-dimensional transform to rotation about \f$y\f$ axis
- * 
- * @param T ::amc_transform_t to set;
- * @param th rotation angle \f$\theta\f$ about \f$y\f$ axis;
- * @param str if not NULL, symbolic expression for \f$\theta\f$, which 
- * overrides numerical value \a th;
- * @param order maximum order of derivatives to evaluate.
- * 
- * @return 0 on success.
- */
-
-int amc_transform_rotation_y(amc_transform_t *T, gdouble th, char *str,
-			     gint order)			     
-
-{
-  gint i ;
-  char buf[256] ;
-  
-  if ( order > amc_transform_order_max(T) ) {
-    fprintf(stderr, "%s: order (%d) greater than transform order (%d)\n",
-	    __FUNCTION__, order, amc_transform_order_max(T)) ;
-    return 1 ;
-  }
-
-  if ( amc_transform_dimension(T) != 3 ) {
-    fprintf(stderr, "%s: only defined for three-dimensional transform\n",
-	    __FUNCTION__) ;
-    return 1 ;
-  }
-
-  amc_transform_matrix_identity(T, 0) ;
-  for ( i = 1 ; i <= amc_transform_order_max(T) ; i ++ ) {
-    amc_transform_matrix_zero(T, i) ;
-  }
-
-  if ( str == NULL ) {
-    amc_transform_entry_set(T, 0, 0, 0,  cos(th), NULL) ;
-    amc_transform_entry_set(T, 0, 0, 2,  sin(th), NULL) ;
-    amc_transform_entry_set(T, 0, 2, 0, -sin(th), NULL) ;
-    amc_transform_entry_set(T, 0, 2, 2,  cos(th), NULL) ;
-  
-    return 0 ;
-  }
-
-  sprintf(buf, "cos(%s)", str) ;
-  amc_transform_entry_set(T, 0, 0, 0, 0, buf) ;
-  amc_transform_entry_set(T, 0, 2, 2, 0, buf) ;
-  sprintf(buf, "-sin(%s)", str) ;
-  amc_transform_entry_set(T, 0, 2, 0, 0, buf) ;
-  sprintf(buf, "sin(%s)", str) ;
-  amc_transform_entry_set(T, 0, 0, 2, 0, buf) ;
-    
-  amc_transform_derivatives_evaluate(T, order) ;
-
-  return 0 ;
-}
-
-/** 
- * Set three-dimensional transform to rotation about \f$z\f$ axis
- * 
- * @param T ::amc_transform_t to set;
- * @param th rotation angle \f$\theta\f$ about \f$z\f$ axis;
- * @param str if not NULL, symbolic expression for \f$\theta\f$, which 
- * overrides numerical value \a th;
- * @param order maximum order of derivatives to evaluate.
- * 
- * @return 0 on success.
- */
-
-int amc_transform_rotation_z(amc_transform_t *T, gdouble th, char *str,
-			     gint order)
-			     
-{
-  gint i ;
-  char buf[256] ;
-  
-  if ( order > amc_transform_order_max(T) ) {
-    fprintf(stderr, "%s: order (%d) greater than transform order (%d)\n",
-	    __FUNCTION__, order, amc_transform_order_max(T)) ;
-    return 1 ;
-  }
-
-  if ( amc_transform_dimension(T) != 3 ) {
-    fprintf(stderr, "%s: only defined for three-dimensional transform\n",
-	    __FUNCTION__) ;
-    return 1 ;
-  }
-
-  amc_transform_matrix_identity(T, 0) ;
-  for ( i = 1 ; i <= amc_transform_order_max(T) ; i ++ ) {
-    amc_transform_matrix_zero(T, i) ;
-  }
-
-  if ( str == NULL ) {
-    amc_transform_entry_set(T, 0, 0, 0,  cos(th), NULL) ;
-    amc_transform_entry_set(T, 0, 0, 1, -sin(th), NULL) ;
-    amc_transform_entry_set(T, 0, 1, 0,  sin(th), NULL) ;
-    amc_transform_entry_set(T, 0, 1, 1,  cos(th), NULL) ;
-  
-    return 0 ;
-  }
-
-  sprintf(buf, "cos(%s)", str) ;
-  amc_transform_entry_set(T, 0, 0, 0, 0, buf) ;
-  amc_transform_entry_set(T, 0, 1, 1, 0, buf) ;
-  sprintf(buf, "-sin(%s)", str) ;
-  amc_transform_entry_set(T, 0, 0, 1, 0, buf) ;
-  sprintf(buf, "sin(%s)", str) ;
-  amc_transform_entry_set(T, 0, 1, 0, 0, buf) ;
-    
-  amc_transform_derivatives_evaluate(T, order) ;
-
-  return 0 ;
-}
 
 /** 
  * Evaluate derivatives of a transform up to some specified order by
@@ -1258,49 +666,8 @@ int amc_transform_chain_matrices_evaluate(amc_transform_chain_t *C, gdouble t,
   return 0 ;
 }
 
-amc_transform_definition_t amc_transform_definition_parse(char *str)
-
-{
-  amc_transform_definition_t def[] = {
-    AMC_TRANSFORM_DEFINITION_UNKNOWN,
-    AMC_TRANSFORM_DEFINITION_MATRIX,
-    AMC_TRANSFORM_DEFINITION_ROTATION_X,
-    AMC_TRANSFORM_DEFINITION_ROTATION_Y,
-    AMC_TRANSFORM_DEFINITION_ROTATION_Z,
-    AMC_TRANSFORM_DEFINITION_UNKNOWN    
-  } ;
-  char *f[] = {
-    "unknown",
-    "matrix",
-    "rotation_x",
-    "rotation_y",
-    "rotation_z",
-    NULL} ;
-  gint i ;
-
-  for ( i = 0 ; f[i] != NULL ; i ++ ) {
-    if ( strcmp(str, f[i]) == 0 ) return def[i] ;
-  }
-  
-  return AMC_TRANSFORM_DEFINITION_UNKNOWN ;
-}
-
-gint amc_transform_parse(amc_transform_t *T, char *str, gdouble val,
-			 gint order)
-
-{
-  switch ( amc_transform_definition(T) ) {
-  default: g_assert_not_reached() ; break ;
-  case AMC_TRANSFORM_DEFINITION_ROTATION_X:
-    amc_transform_rotation_x(T, val, str, order) ;
-    break ;
-  case AMC_TRANSFORM_DEFINITION_ROTATION_Y:
-    amc_transform_rotation_y(T, val, str, order) ;
-    break ;
-  case AMC_TRANSFORM_DEFINITION_ROTATION_Z:
-    amc_transform_rotation_z(T, val, str, order) ;
-    break ;
-  }
-  
-  return 0 ;
-}
+/**
+ *
+ * @}
+ *
+ */

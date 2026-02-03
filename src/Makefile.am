@@ -9,6 +9,8 @@ libamc_la_SOURCES = \
 	amc.c \
 	amc.h \
 	frame.c \
+	transforms.c \
+	chain.c \
 	tinyexpr.c \
 	tinyexpr.h
 

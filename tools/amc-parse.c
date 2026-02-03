@@ -125,7 +125,7 @@ gint main(gint argc, char **argv)
   
   for ( i = 0 ; i < n ; i ++ ) {
     t = t0 + (t1 - t0)*i/n ;
-    amc_frame_evaluate(F, t) ;
+    amc_frame_transforms_evaluate(F, t) ;
     for ( j = 0 ; j < nopfiles ; j ++ ) {
       amc_transform_chain_evaluate(amc_frame_transform_chain(F,j), 0, T) ;
       for ( k = 0 ; k < npts[j] ; k ++ ) {

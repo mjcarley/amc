@@ -4,15 +4,16 @@ variable::V = 0
 variable::W = 10
 
 dimension = 3
+order = 2
 
 ## transforms start here
-transform::shift = rotation_x("Omega*t")
-transform::rotation = [
-"cos(Omega*t)" "-sin(Omega*t)" 0 0 
-"sin(Omega*t)" "cos(Omega*t)" 0 0 
-0 0 1 0 
-0 0 0 1 
-]
+transform::rotation = rotation_z("Omega*(1-exp(-2*t))*t")
+#transform::rotation = [
+##"cos(Omega*t)" "-sin(Omega*t)" 0 0 
+##"sin(Omega*t)" "cos(Omega*t)" 0 0 
+##0 0 1 0 
+##0 0 0 1 
+##]
 transform::translation = [
 1 0 0 "U*t" 
 0 1 0 "V*t" 

@@ -1,4 +1,10 @@
 /**
   @mainpage Affine Motion Calculation 
 
+  @defgroup transform Evaluation of affine transforms and derivatives
+
+  @defgroup chain Evaluation of chains of transforms and derivatives
+
+  @defgroup frame Evaluation of motion of, and within, reference frames
+
 */

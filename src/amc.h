@@ -3,25 +3,23 @@
 
 #define AMC_TRANSFORM_VARIABLE_NUMBER 64
 
-/**
- * @file   amc.h
- * @author  <michael@michael.paraffinalia.co.uk>
- * @date   Fri May 17 09:13:57 2024
- * 
- * @brief  
- * 
- * 
- */
-
 typedef enum {
-  AMC_TRANSFORM_DEFINITION_UNKNOWN = 0,
-  AMC_TRANSFORM_DEFINITION_MATRIX = 1,
+  AMC_TRANSFORM_DEFINITION_UNKNOWN    = 0,
+  AMC_TRANSFORM_DEFINITION_MATRIX     = 1,
   AMC_TRANSFORM_DEFINITION_ROTATION_X = 2,
   AMC_TRANSFORM_DEFINITION_ROTATION_Y = 3,
-  AMC_TRANSFORM_DEFINITION_ROTATION_Z = 4
+  AMC_TRANSFORM_DEFINITION_ROTATION_Z = 4,
+  AMC_TRANSFORM_DEFINITION_ROTATION   = 5
 } amc_transform_definition_t ;
 
 #ifdef DOXYGEN
+/**
+ *
+ * @{
+ * 
+ * @ingroup transform
+ */
+
 /** 
  * @typedef amc_transform_t
  * 
@@ -77,6 +75,12 @@ typedef amc_transform_t ;
  */
 #define amc_transform_compiled(T)
 
+/**
+ *
+ * @}
+ * 
+ */
+
 #else /*DOXYGEN*/
 typedef struct _amc_transform_t amc_transform_t ;
 
@@ -116,6 +120,13 @@ struct _amc_transform_t
 #endif /*DOXYGEN*/
 
 #ifdef DOXYGEN
+/**
+ *
+ * @{
+ * 
+ * @ingroup chain
+ */
+
 /** 
  * @typedef amc_transform_chain_t
  * 
@@ -140,6 +151,12 @@ typedef amc_transform_chain_t ;
  * @brief TRUE if \a C is tagged
  */
 #define amc_transform_chain_tag(C)
+
+/**
+ *
+ * @}
+ * 
+ */
 
 #else /*DOXYGEN*/
 typedef struct _amc_transform_chain_t amc_transform_chain_t ;
@@ -168,6 +185,17 @@ struct _amc_transform_chain_t
   } while (0)
 #endif /*DOXYGEN*/
 
+#ifdef DOXYGEN
+/** 
+ * @ingroup frame
+ * @typedef amc_frame_t
+ * 
+ * Type holding transforms and chains for evaluation with a reference
+ * frame
+ */
+typedef amc_frame_t ;
+
+#else /*DOXYGEN*/
 typedef struct _amc_frame_t amc_frame_t ;
 struct _amc_frame_t {
   amc_transform_t       **T ;
@@ -190,6 +218,7 @@ struct _amc_frame_t {
 #define amc_frame_transform_chain_name(_f,_i)    ((_f)->chains[(_i)])
 #define amc_frame_dimension(_f)                  ((_f)->dim)
 #define amc_frame_order(_f)                      ((_f)->order)
+#endif /*DOXYGEN*/
 
 amc_transform_t *amc_transform_alloc(gint dim, gint order) ;
 gint amc_transform_entry_set(amc_transform_t *T, gint order,
@@ -246,7 +275,7 @@ gint amc_frame_transform_chain_add(amc_frame_t *f,
 gint amc_frame_transform_find(amc_frame_t *f, char *name) ;
 gint amc_frame_transform_chain_find(amc_frame_t *f, char *name) ;
 gint amc_frame_initialise(amc_frame_t *f) ;
-gint amc_frame_evaluate(amc_frame_t *f, gdouble t) ;
+gint amc_frame_transforms_evaluate(amc_frame_t *F, gdouble t) ;
 gint amc_frame_write(FILE *f, amc_frame_t *F) ;
 gint amc_frame_read(amc_frame_t *F, char *file) ;
 

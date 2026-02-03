@@ -40,6 +40,15 @@
 #define AMC_TOKEN_TRANSFORM     2
 #define AMC_TOKEN_CHAIN         3
 #define AMC_TOKEN_DIMENSION     4
+#define AMC_TOKEN_ORDER         5
+
+/**
+ *
+ * @addtogroup frame
+ *
+ * @{
+ *
+ */
 
 static gint variable_find(te_variable *vars, gint nvars, te_variable v)
 
@@ -69,16 +78,29 @@ static gint token_parse(char *t)
 
 {
   gint i ;
-  char *tokens[] = {"variable", "transform", "chain", "dimension", NULL} ;
+  char *names[] = {"variable", "transform", "chain", "dimension",
+    "order", NULL} ;
+  gint tokens[] = {AMC_TOKEN_VARIABLE, AMC_TOKEN_TRANSFORM,
+    AMC_TOKEN_CHAIN, AMC_TOKEN_DIMENSION, AMC_TOKEN_ORDER} ;
 
-  for ( i = 0 ; tokens[i] != NULL ; i ++ ) {
-    if ( strcmp(t, tokens[i]) == 0 ) {
-      return i + 1 ;
+  for ( i = 0 ; names[i] != NULL ; i ++ ) {
+    if ( strcmp(t, names[i]) == 0 ) {
+      return tokens[i] ;
     }
   }    
   
   return AMC_TOKEN_ERROR ;
 }  
+
+/** 
+ * Allocate a new AMC frame.
+ * 
+ * @param nt maximum number of transforms in frame;
+ * @param nc maximum number of transform chains in frame;
+ * @param nv maximum number of variables in frame.
+ * 
+ * @return newly allocated ::amc_frame_t
+ */
 
 amc_frame_t *amc_frame_alloc(gint nt, gint nc, gint nv)
 
@@ -106,6 +128,18 @@ amc_frame_t *amc_frame_alloc(gint nt, gint nc, gint nv)
   return F ;
 }
 
+/** 
+ * Add an ::amc_transform_t to an ::amc_frame_t. The newly added
+ * transform can then be accessed by chains in the frame, and referred
+ * to by name \a name.
+ * 
+ * @param F an allocated ::amc_frame_t;
+ * @param T an ::amc_transform_t to add to \a F;
+ * @param name the name which will identify \a T in \a F.
+ * 
+ * @return 0 on success.
+ */
+
 gint amc_frame_transform_add(amc_frame_t *F, amc_transform_t *T, char *name)
 
 {
@@ -117,6 +151,10 @@ gint amc_frame_transform_add(amc_frame_t *F, amc_transform_t *T, char *name)
 	    __FUNCTION__, amc_frame_transform_number(F)+1) ;
   }
 
+  if ( name == NULL ) {
+    g_error("%s: transform name may not be NULL", __FUNCTION__) ;
+  }    
+  
   /*check name is not a duplicate*/
   i = amc_frame_transform_find(F, name) ;
   if ( i != -1 ) {
@@ -163,6 +201,18 @@ gint amc_frame_transform_add(amc_frame_t *F, amc_transform_t *T, char *name)
   return 0 ;
 }
 
+/** 
+ * Find an ::amc_transform_t in an ::amc_frame_t by name. The function
+ * returns the index \c i of the transform so that
+ * <tt>amc_frame_transform_name(F,i)==name</tt>
+ * 
+ * @param F an allocated :;amc_frame_t;
+ * @param name the name of the transform which is sought.
+ * 
+ * @return the index of the transform with name \a name in \a F, or -1
+ * if not found.
+ */
+
 gint amc_frame_transform_find(amc_frame_t *F, char *name)
 
 {
@@ -175,6 +225,16 @@ gint amc_frame_transform_find(amc_frame_t *F, char *name)
   return -1 ;
 }
 
+/** 
+ * Add an ::amc_transform_chain_t to an ::amc_frame_t. The newly added
+ * chain can then be referred to by name \a name.
+ * 
+ * @param F an allocated ::amc_frame_t;
+ * @param C an ::amc_transform_chain_t to add to \a F;
+ * @param name the name which will identify \a C in \a F.
+ * 
+ * @return 0 on success.
+ */
 gint amc_frame_transform_chain_add(amc_frame_t *F,
 				   amc_transform_chain_t *C, char *name)
 
@@ -187,6 +247,10 @@ gint amc_frame_transform_chain_add(amc_frame_t *F,
 	    __FUNCTION__, amc_frame_transform_chain_number(F)+1) ;
   }
 
+  if ( name == NULL ) {
+    g_error("%s: transform chain name may not be NULL", __FUNCTION__) ;
+  }    
+  
   /*check name is not a duplicate*/
   i = amc_frame_transform_chain_find(F, name) ;
   if ( i != -1 ) {
@@ -218,6 +282,18 @@ gint amc_frame_transform_chain_add(amc_frame_t *F,
   return 0 ;
 }
 
+/** 
+ * Find an ::amc_transform_chain_t in an ::amc_frame_t by name. The
+ * function returns the index \c i of the transform chain so that
+ * <tt>amc_frame_transform_chain_name(F,i)==name</tt>
+ * 
+ * @param F an allocated :;amc_frame_t; @param name the name of the
+ * transform chain which is sought.
+ * 
+ * @return the index of the chain with name \a name in \a F, or -1 if
+ * not found.
+ */
+
 gint amc_frame_transform_chain_find(amc_frame_t *F, char *name)
 
 {
@@ -229,6 +305,17 @@ gint amc_frame_transform_chain_find(amc_frame_t *F, char *name)
   
   return -1 ;
 }
+
+/** 
+ * Initialise an ::amc_frame_t in preparation for evaluation of
+ * transforms. Each transform in the frame has its derivatives
+ * evaluated up to the frame order, and expressions are compiled for
+ * evaluation.
+ * 
+ * @param F an ::amc_frame_t to initialise.
+ * 
+ * @return 0 on success.
+ */
 
 gint amc_frame_initialise(amc_frame_t *F)
 
@@ -245,7 +332,16 @@ gint amc_frame_initialise(amc_frame_t *F)
   return 0 ;
 }
 
-gint amc_frame_evaluate(amc_frame_t *F, gdouble t)
+/** 
+ * Evaluate transforms in an ::amc_frame_t at specified time.
+ * 
+ * @param F an ::amc_frame_t;
+ * @param t evaluation time for transform matrices and derivatives.
+ * 
+ * @return 0 on success.
+ */
+
+gint amc_frame_transforms_evaluate(amc_frame_t *F, gdouble t)
 
 {
   gint i ;
@@ -258,6 +354,16 @@ gint amc_frame_evaluate(amc_frame_t *F, gdouble t)
   
   return 0 ;
 }
+
+/** 
+ * Write an ::amc_frame_t to file in a form which can be parsed by
+ * ::amc_frame_read.
+ * 
+ * @param f output file stream;
+ * @param F ::amc_frame_t to write.
+ * 
+ * @return 0 on success.
+ */
 
 gint amc_frame_write(FILE *f, amc_frame_t *F)
 
@@ -273,6 +379,9 @@ gint amc_frame_write(FILE *f, amc_frame_t *F)
     fprintf(f, "variable::%s = %lg\n",
 	    vars[i].name, *((gdouble *)(vars[i].address))) ;
   }
+
+  fprintf(f, "dimension = %d\n", amc_frame_dimension(F)) ;
+  fprintf(f, "order = %d\n", amc_frame_order(F)) ;
   
   for ( i = 0 ; i < amc_frame_transform_number(F) ; i ++ ) {
     T = amc_frame_transform(F,i) ;
@@ -359,7 +468,7 @@ static gint variable_read(GScanner *scanner, te_variable *v,
   return 0 ;
 }
 
-static gint dimension_read(GScanner *scanner, gint *dim)
+static gint parameter_int_read(GScanner *scanner, gint *p)
 
 {
   GTokenType token, t[4] ;
@@ -373,7 +482,7 @@ static gint dimension_read(GScanner *scanner, gint *dim)
   if ( (token = token_search(scanner, t, 2)) != G_TOKEN_FLOAT )
     return -1 ;
   
-  *dim = (gint)(scanner->value.v_float) ;
+  *p = (gint)(scanner->value.v_float) ;
   
   return 0 ;
 }
@@ -533,17 +642,27 @@ static gint chain_read(GScanner *scanner, amc_frame_t *F)
   return 0 ;
 }
 
+/** 
+ * Read and parse an ::amc_frame_t from file, in the format written by
+ * ::amc_frame_write
+ * 
+ * @param F ::amc_frame_t to read, which should already be allocated;
+ * @param file name of file from which to read \a F.
+ * 
+ * @return 0 on success.
+ */
+
 gint amc_frame_read(amc_frame_t *F, char *file)
 
 {
   GScanner *scanner ;
   GTokenType token ;
-  gint fd, amc_id, nvars, dim, i, j ;
+  gint fd, amc_id, nvars, dim, order, i, j ;
   te_variable *vars ;
   
   vars  = (te_variable *)(F->vars) ;
   amc_frame_dimension(F) = 0 ;
-  amc_frame_order(F) = 1 ;
+  amc_frame_order(F) = 0 ;
   
   scanner = g_scanner_new(NULL) ;
   scanner->config->int_2_float = TRUE ;
@@ -570,7 +689,7 @@ gint amc_frame_read(amc_frame_t *F, char *file)
 		__FUNCTION__, g_scanner_cur_line(scanner)) ;
 	break ;
       case AMC_TOKEN_DIMENSION:
-	if ( dimension_read(scanner, &dim) != 0 ) {
+	if ( parameter_int_read(scanner, &dim) != 0 ) {
 	  g_error("%s: syntax error on line %u",
 		  __FUNCTION__, g_scanner_cur_line(scanner)) ;
 	}
@@ -578,6 +697,17 @@ gint amc_frame_read(amc_frame_t *F, char *file)
 	  g_error("%s: invalid dimension %d", __FUNCTION__, dim) ;
 	}
 	amc_frame_dimension(F) = dim ;
+	amc_id = AMC_TOKEN_UNIDENTIFIED ;
+	break ;
+      case AMC_TOKEN_ORDER:
+	if ( parameter_int_read(scanner, &order) != 0 ) {
+	  g_error("%s: syntax error on line %u",
+		  __FUNCTION__, g_scanner_cur_line(scanner)) ;
+	}
+	if ( order < 0 ) {
+	  g_error("%s: invalid order %d", __FUNCTION__, order) ;
+	}
+	amc_frame_order(F) = order ;
 	amc_id = AMC_TOKEN_UNIDENTIFIED ;
 	break ;
       case AMC_TOKEN_VARIABLE:
@@ -621,7 +751,13 @@ gint amc_frame_read(amc_frame_t *F, char *file)
     }
   }
   
-  amc_frame_write(stderr, F) ;
+  /* amc_frame_write(stderr, F) ; */
   
   return 0 ;
 }
+
+/**
+ *
+ * @}
+ * 
+ */
